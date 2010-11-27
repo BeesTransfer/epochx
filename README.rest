@@ -1,0 +1,19 @@
+================================
+ EpochX fork with Maven Support
+================================
+
+This project is a fork of the original `EpochX
+<http://www.epochx.org/>`_ project, a free and open source genetic
+programming framework.
+
+The original intention of forking is to add `Maven
+<http://maven.apache.org/>`_ support to the library. The initially
+forked version is 1.3.1 which is released on 2010-11-09.
+
+We feel obliged to say thanks to the original developer Mr `Tom Castle
+<http://http://www.tc33.org/>`_ who is a `researcher
+<http://www.cs.kent.ac.uk/people/rpg/tc33/>`_ at the University of
+Kent for this nice library which we think is a lot of fun to play
+with.
+
+Please kindly note that the license is GPL.
