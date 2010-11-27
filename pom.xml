@@ -57,12 +57,6 @@
 			<scope>compile</scope>
 		</dependency>
 		<dependency>
-			<groupId>bsh</groupId>
-			<artifactId>bsh</artifactId>
-			<version>2.0b4</version>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.jruby</groupId>
 			<artifactId>jruby-complete</artifactId>
 			<version>1.5.5</version>
@@ -73,6 +67,13 @@
 			<groupId>org.codehaus.groovy</groupId>
 			<artifactId>groovy</artifactId>
 			<version>1.7.5</version>
+			<type>jar</type>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.beanshell</groupId>
+			<artifactId>bsh</artifactId>
+			<version>2.0b4</version>
 			<type>jar</type>
 			<scope>compile</scope>
 		</dependency>
@@ -87,5 +88,4 @@
 			<layout>default</layout>
 		</repository>
 	</distributionManagement>
-
 </project>
