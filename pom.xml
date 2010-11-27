@@ -42,8 +42,6 @@
 			</extension>
 		</extensions>
 	</build>
-
-
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -79,4 +77,15 @@
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>
+	<distributionManagement>
+		<downloadUrl>http://maven.beesdom.com/</downloadUrl>
+		<repository>
+			<uniqueVersion>false</uniqueVersion>
+			<id>beesdom</id>
+			<name>beesdom Maven Repository</name>
+			<url>scpexe://maven.beesdom.com/srv/web/maven.beesdom.com</url>
+			<layout>default</layout>
+		</repository>
+	</distributionManagement>
+
 </project>
