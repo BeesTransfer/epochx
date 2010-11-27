@@ -17,3 +17,15 @@ Kent for this nice library which we think is a lot of fun to play
 with.
 
 Please kindly note that the license is GPL.
+
+What is different compared to the 1.3.1 Version?
+================================================
+
+Almost nothing in functionality. The only change is that the private
+``EpoxParser.simpleFunctions`` is publicized (See
+``org.epochx.epox.EpoxParser:41``).
+
+Other than that, all the dependencies are moved into the ``pom.xml``
+file and tests are moved into ``src/tests``. Tests do compile and run
+without errors, by the way.
+
