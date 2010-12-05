@@ -32,12 +32,36 @@ public abstract class CandidateProgram implements Cloneable,
 	/**
 	 * Calculates a quality score for this program. The exact calculation
 	 * implementation varies by subclass. Fitnesses are standardised
-	 * so implementations should return lower values for better programs.
+	 * so implementations should return lower values for better programs. There 
+	 * is however no obligation for fitness values to be positive.
 	 * 
 	 * @return a standardised fitness score indicating the quality of this
 	 *         candidate program.
 	 */
 	public abstract double getFitness();
+	
+	/**
+	 * Calculates and returns the adjusted fitness of this program. A program's 
+	 * adjusted fitness lies between 0 and 1, with a larger value for better
+	 * individuals. The fitness value returned from the <code>getFitness</code>
+	 * method is used as the standardised fitness in the calculation, so it is
+	 * assumed that the lowest possible value returned from that method is 0.0.
+	 * 
+	 * <p>
+	 * The adjusted fitness is calculated using the formula:
+	 * 
+	 * <code><blockquote>
+	 * adjusted-fitness = 1 / (1 + standardised-fitness)
+	 * </blockquote></code>
+	 * 
+	 * @return
+	 */
+	public double getAdjustedFitness() {
+		double standardised = getFitness();
+		double adjusted = 1.0 / (1.0 + standardised);
+		
+		return adjusted;
+	}
 
 	/**
 	 * Tests whether this <code>CandidateProgram</code> is valid according to

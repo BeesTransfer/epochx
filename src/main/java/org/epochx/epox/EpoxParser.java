@@ -38,7 +38,7 @@ public class EpoxParser {
 
 	// This map is to contain only simple functions that require no additional
 	// info.
-	public final Map<String, Class<?>> simpleFunctions;
+	private final Map<String, Class<?>> simpleFunctions;
 
 	// List of variables to be used, any variables found, not provided will be
 	// created.
@@ -106,6 +106,7 @@ public class EpoxParser {
 		simpleFunctions.put("COS", CosineFunction.class);
 		simpleFunctions.put("COT", CotangentFunction.class);
 		simpleFunctions.put("CUBE", CubeFunction.class);
+		simpleFunctions.put("EXP", ExponentialFunction.class);
 		simpleFunctions.put("FACTORIAL", FactorialFunction.class);
 		simpleFunctions.put("GT", GreaterThanFunction.class);
 		simpleFunctions.put("COSH", HyperbolicCosineFunction.class);
@@ -239,25 +240,40 @@ public class EpoxParser {
 	 * @return
 	 */
 	private Node parseTerminal(final String terminalStr) {
-		if (Pattern.matches(fpRegex, terminalStr)) {
-			return new DoubleLiteral(Double.valueOf(terminalStr));
-		} else if (terminalStr.equalsIgnoreCase("true")
-				|| terminalStr.equalsIgnoreCase("false")) {
-			return new BooleanLiteral(Boolean.valueOf(terminalStr));
+		Node node = parseBooleanLiteral(terminalStr);
+			
+		if (node == null) {
+			node = parseVariable(terminalStr);
+		}
+		
+		if (node == null && Pattern.matches(fpRegex, terminalStr)) {
+			node = new DoubleLiteral(Double.valueOf(terminalStr));
+		}
+		
+		return node;
+	}
+	
+	private BooleanLiteral parseBooleanLiteral(final String literalStr) {
+		if (literalStr.equalsIgnoreCase("true") || literalStr.equalsIgnoreCase("false")) {
+			return new BooleanLiteral(Boolean.valueOf(literalStr));
 		} else {
-			// Must be a variable.
-			for (final Node v: variables) {
-				if (v.getIdentifier().equals(terminalStr)) {
-					return v;
-				}
-			}
-
 			return null;
 		}
 	}
+	
+	private Node parseVariable(final String variableStr) {
+		Node variable = null;
+		for (final Node v: variables) {
+			if (v.getIdentifier().equals(variableStr)) {
+				variable = v;
+				break;
+			}
+		}
+		return variable;
+	}
 
 	public void addSimpleFunction(final String name,
-			final Class<Node> functionClass) {
+			final Class<? extends Node> functionClass) {
 		simpleFunctions.put(name, functionClass);
 	}
 

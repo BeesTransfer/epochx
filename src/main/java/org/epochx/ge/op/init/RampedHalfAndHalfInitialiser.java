@@ -142,14 +142,54 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GEModel> implem
 	}
 
 	/**
-	 * Construct a RampedHalfAndHalfInitialiser.
+	 * Construct a RampedHalfAndHalfInitialiser with the necessary
+	 * parameters loaded from the given model. The parameters are reloaded on
+	 * configure events.
 	 * 
-	 * @param model The model being assessed
+	 * @param model the <code>Model</code> instance from which the necessary
+	 *        parameters should be loaded.
+	 * @param acceptDuplicates whether duplicates should be allowed in the
+	 *        populations that are generated.
 	 */
 	public RampedHalfAndHalfInitialiser(final GEModel model,
 			final boolean acceptDuplicates) {
+		this(model, -1, acceptDuplicates);
+	}
+	
+	/**
+	 * Construct a RampedHalfAndHalfInitialiser with the necessary
+	 * parameters loaded from the given model. The parameters are reloaded on
+	 * configure events.
+	 * 
+	 * @param model the <code>Model</code> instance from which the necessary
+	 *        parameters should be loaded.
+	 * @param startMaxDepth the minimum depth from which programs should be
+	 *        generated
+	 *        to.
+	 */
+	public RampedHalfAndHalfInitialiser(final GEModel model,
+			final int startMaxDepth) {
+		this(model, startMaxDepth, true);
+	}
+	
+	/**
+	 * Constructs a <code>RampedHalfAndHalfInitialiser</code> with the necessary
+	 * parameters loaded from the given model. The parameters are reloaded on
+	 * configure events.
+	 * 
+	 * @param model the <code>Model</code> instance from which the necessary
+	 *        parameters should be loaded.
+	 * @param startMaxDepth the minimum depth from which programs should be
+	 *        generated
+	 *        to.
+	 * @param acceptDuplicates whether duplicates should be allowed in the
+	 *        populations that are generated.
+	 */
+	public RampedHalfAndHalfInitialiser(final GEModel model,
+			final int startMaxDepth, final boolean acceptDuplicates) {
 		super(model);
 		
+		this.startMaxDepth = startMaxDepth;
 		this.acceptDuplicates = acceptDuplicates;
 
 		// set up the grow and full parts

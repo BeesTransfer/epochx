@@ -78,7 +78,7 @@ public abstract class Regression extends GPModel {
 			outputs[i] = getCorrectResult(inputs[i]);
 		}
 	}
-
+	
 	/**
 	 * Calculates the fitness score for the given program. The fitness of a
 	 * program is the number of inputs the program incorrectly calculates the
@@ -101,14 +101,46 @@ public abstract class Regression extends GPModel {
 			final double result = (Double) program.evaluate();
 			final double error = Math.abs(result - outputs[i]);
 
-			if (error > POINT_ERROR) {
+			if (error > POINT_ERROR || Double.isNaN(result)) {
 				noWrong++;
 			}
 		}
-
+		
 		// How good is this result?
 		return noWrong;
 	}
+	
+//	/**
+//	 * Calculates the fitness score for the given program. The fitness of a
+//	 * program is the sum of error of the programs results compared to the 
+//	 * expected result. All programs are evaluated against the same inputs
+//	 * which are randomly selected between -1.0 and 1.0. The number of inputs
+//	 * can be provided as an argument to the constructor or defaults to 50.
+//	 * 
+//	 * @param p {@inheritDoc}
+//	 * @return the calculated fitness for the given program.
+//	 */
+//	@Override
+//	public double getFitness(final CandidateProgram p) {
+//		final GPCandidateProgram program = (GPCandidateProgram) p;
+//
+//		double errorSum = 0.0;
+//
+//		for (int i = 0; i < inputs.length; i++) {
+//			x.setValue(inputs[i]);
+//			final double result = (Double) program.evaluate();
+//			final double error = Math.abs(result - outputs[i]);
+//
+//			if (!Double.isNaN(result)) {
+//				errorSum += error;
+//			} else {
+//				errorSum = Double.POSITIVE_INFINITY;
+//			}
+//		}
+//		
+//		// How good is this result?
+//		return errorSum;
+//	}
 
 	/*
 	 * The actual function we are trying to evolve.

@@ -21,6 +21,7 @@
  */
 package org.epochx.gp.op.init;
 
+import java.math.BigInteger;
 import java.util.*;
 
 import org.epochx.epox.*;
@@ -83,10 +84,13 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 	 */
 	public static final Stat INIT_GROWN = new AbstractStat(ExpiryEvent.INITIALISATION) {};
 	
-	// The grow and full instances for doing their share of the work.
+	// The grow and full instances for doing their share of the work - do not allow access.
 	private final GrowInitialiser grow;
 	private final FullInitialiser full;
 
+	// Nodes the programs will be constructed from.
+	private List<Node> syntax;
+	
 	// The size of the populations to construct.
 	private int popSize;
 
@@ -110,6 +114,7 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 		this.endMaxDepth = endMaxDepth;
 		this.startMaxDepth = startMaxDepth;
 		this.popSize = popSize;
+		this.syntax = syntax;
 
 		// Set up the grow and full parts.
 		grow.setRNG(rng);
@@ -128,7 +133,7 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 	 *        parameters should be loaded.
 	 */
 	public RampedHalfAndHalfInitialiser(final GPModel model) {
-		this(model, 2);
+		this(model, 1);
 	}
 
 	/**
@@ -179,6 +184,7 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 	public void onConfigure() {
 		popSize = getModel().getPopulationSize();
 		endMaxDepth = getModel().getMaxInitialDepth();
+		syntax = getModel().getSyntax();
 	}
 
 	/**
@@ -198,53 +204,94 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 	@Override
 	public List<CandidateProgram> getInitialPopulation() {
 		if (popSize < 1) {
-			throw new IllegalStateException(
-					"Population size must be 1 or greater");
+			throw new IllegalStateException("Population size must be 1 or greater");
 		} else if (endMaxDepth < startMaxDepth) {
-			throw new IllegalStateException(
-					"End maximum depth must be greater than the start maximum depth.");
+			throw new IllegalStateException("End maximum depth must be greater than the start maximum depth.");
 		}
 		
 		// Create population list to populate.
-		final List<CandidateProgram> firstGen = new ArrayList<CandidateProgram>(
-				popSize);
+		final List<CandidateProgram> firstGen = new ArrayList<CandidateProgram>(popSize);
 
-		final int startDepth = startMaxDepth;
-
-		// Number of programs each depth SHOULD have. But won't unless remainder
-		// is 0.
-		final double programsPerDepth = (double) popSize
-				/ (endMaxDepth - startDepth + 1);
+		// Number of programs to create at each depth.
+		final int[] programsPerDepth = getProgramsPerDepth();
 
 		// Whether each program was grown or not (full).
 		boolean[] grown = new boolean[popSize];
 		
-		for (int i = 0; i < popSize; i++) {
-			// Calculate depth
-			final int depth = (int) Math
-					.floor((firstGen.size() / programsPerDepth) + startDepth);
+		int popIndex = 0;
+		boolean growNext = true;
+		for (int depth = startMaxDepth; depth <= endMaxDepth; depth++) {
+			int noPrograms = programsPerDepth[depth-startMaxDepth];
+			
+			for (int i = 0; i < noPrograms; i++) {
+				// Grow on even numbers, full on odd.
+				GPCandidateProgram program;
 
-			// Grow on even numbers, full on odd.
-			GPCandidateProgram program;
+				do {
+					grown[popIndex] = growNext;
+					if (growNext) {
+						grow.setMaxDepth(depth);
+						program = grow.getInitialProgram();
+					} else {
+						full.setDepth(depth);
+						program = full.getInitialProgram();
+					}
+					// The effect is that if is a duplicate then will use other
+					// approach next - this is deliberate because full may have
+					// less possible programs for a given depth.
+					growNext = !growNext;
+				} while (!acceptDuplicates && firstGen.contains(program));
 
-			do {
-				if ((i % 2) == 0) {
-					grown[i] = true;
-					grow.setMaxDepth(depth);
-					program = grow.getInitialProgram();
-				} else {
-					full.setDepth(depth);
-					program = full.getInitialProgram();
-				}
-			} while (!acceptDuplicates && firstGen.contains(program));
-
-			firstGen.add(program);
+				firstGen.add(program);
+				popIndex++;
+			}
 		}
 		
 		// Add the grown or full nature of all the programs.
 		Stats.get().addData(INIT_GROWN, grown);
 
 		return firstGen;
+	}
+	
+	private int[] getProgramsPerDepth() {
+		int noDepths = endMaxDepth - startMaxDepth + 1;
+		int[] noPrograms = new int[noDepths];
+		
+		final int programsPerDepth = popSize / noDepths;
+		Arrays.fill(noPrograms, programsPerDepth);
+		
+		// Remaining programs missed out by rounding.
+		final int remainder = popSize % noDepths;
+		
+		// Add remainders to largest depth. TODO Change to spread?
+		noPrograms[noPrograms.length-1] += remainder;
+		
+		if (!acceptDuplicates) {
+			// Can sufficient be created at each depth?
+			for (int i=startMaxDepth; i<=endMaxDepth; i++) {
+				int target = noPrograms[i - startMaxDepth];
+				BigInteger targetBI = BigInteger.valueOf(target);
+				if (!NodeUtils.isSufficientVarieties(syntax, i, targetBI)) {
+					BigInteger noPossibleBI = NodeUtils.noVarieties(syntax, i);
+					
+					// Must fit into an int because target was an int.
+					int noPossible = noPossibleBI.intValue();
+					int shortfall = target - noPossible;
+					
+					// Move the shortfall to the next depth if there is one.
+					if (i+1 <= endMaxDepth) {
+						noPrograms[i+1 - startMaxDepth] += shortfall;
+						noPrograms[i - startMaxDepth] -= shortfall;
+					} else {
+						throw new IllegalStateException("Impossible to create sufficient programs inside depth parameters");
+					}
+				} else {
+					break;
+				}
+			}
+		}
+		
+		return noPrograms;
 	}
 
 	/**
@@ -292,6 +339,18 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 		grow.setRNG(rng);
 		full.setRNG(rng);
 	}
+	
+	/**
+	 * Returns a <code>List</code> of the <code>Nodes</code> that form the
+	 * syntax of new program generated with this initialiser, or
+	 * an empty list if none have been set.
+	 * 
+	 * @return the types of <code>Node</code> that should be used in
+	 *         constructing new programs.
+	 */
+	public List<Node> getSyntax() {
+		return syntax;
+	}
 
 	/**
 	 * Sets the <code>Nodes</code> that should be used to construct new
@@ -302,6 +361,8 @@ public class RampedHalfAndHalfInitialiser extends ConfigOperator<GPModel> implem
 	 *        should be used in constructing new programs.
 	 */
 	public void setSyntax(final List<Node> syntax) {
+		this.syntax = syntax;
+		
 		grow.setSyntax(syntax);
 		full.setSyntax(syntax);
 	}

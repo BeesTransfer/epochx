@@ -30,10 +30,7 @@ import org.epochx.tools.random.RandomNumberGenerator;
 
 /**
  * Fitness proportionate selection chooses programs with a probability
- * proportional to their fitness inverted. Fitnesses must be inverted prior to
- * selection since fitness is standardised. Inversion is performed by
- * subtracting each fitness from the maximum fitness in the population, plus the
- * minimum fitness.
+ * proportional to their adjusted fitness. 
  * 
  * <p>
  * If a model is provided then the following parameters are loaded upon every
@@ -63,26 +60,58 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 
 	// Random number generator.
 	private RandomNumberGenerator rng;
+	
+	// Whether over-selection should be used or not.
+	private boolean overSelection;
 
 	/**
 	 * Constructs an instance of <code>FitnessProportionateSelector</code> with 
-	 * the only necessary parameter given.
+	 * the only compulsory parameter given.
 	 * 
 	 * @param rng a <code>RandomNumberGenerator</code> used to lead 
 	 * non-deterministic behaviour.
 	 */
 	public FitnessProportionateSelector(final RandomNumberGenerator rng) {
-		this((Model) null);
+		this((Model) null, false);
 	}
 	
 	/**
-	 * Constructs an instance of <code>FitnessProportionateSelector</code>.
+	 * Constructs an instance of <code>FitnessProportionateSelector</code> with 
+	 * the only necessary parameters given.
+	 * 
+	 * @param rng a <code>RandomNumberGenerator</code> used to lead 
+	 * non-deterministic behaviour.
+	 * @param overSelection true if greedy over-selection should be used and 
+	 * false otherwise.
+	 */
+	public FitnessProportionateSelector(final RandomNumberGenerator rng, final boolean overSelection) {
+		this((Model) null, overSelection);
+	}
+	
+	/**
+	 * Constructs an instance of <code>FitnessProportionateSelector</code> that
+	 * does not use over-selection.
 	 * 
 	 * @param model the Model which defines the run parameters such as the
 	 *        random number generator to use.
 	 */
 	public FitnessProportionateSelector(final Model model) {
+		this(model, false);
+	}
+	
+	/**
+	 * Constructs an instance of <code>FitnessProportionateSelector</code> that
+	 * does not use over-selection.
+	 * 
+	 * @param model the Model which defines the run parameters such as the
+	 *        random number generator to use.
+	 * @param overSelection true if greedy over-selection should be used and 
+	 * 		  false otherwise.
+	 */
+	public FitnessProportionateSelector(final Model model, final boolean overSelection) {
 		super(model);
+		
+		this.overSelection = overSelection;
 
 		// Construct the internal program selectors.
 		programSelection = new ProgramFitnessProportionateSelector();
@@ -136,8 +165,7 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 	 *         rank.
 	 */
 	@Override
-	public List<CandidateProgram> getPool(final List<CandidateProgram> pop,
-			final int poolSize) {
+	public List<CandidateProgram> getPool(final List<CandidateProgram> pop, final int poolSize) {
 		if (poolSize < 1) {
 			throw new IllegalArgumentException("poolSize must be greater than 0");
 		} else if ((pop == null) || (pop.isEmpty())) {
@@ -175,6 +203,47 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 	public void setRNG(final RandomNumberGenerator rng) {
 		this.rng = rng;
 	}
+	
+	/**
+	 * Returns true if over-selection is enabled and false otherwise.
+	 * 
+	 * @return true if over-selection is being used, false otherwise.
+	 */
+	public boolean isOverSelectionEnabled() {
+		return overSelection;
+	}
+	
+	/**
+	 * Sets whether over-selection should be used. 
+	 * 
+	 * @param overSelection true if over-selection should be used and false 
+	 * otherwise.
+	 */
+	public void setOverSelectionEnabled(boolean overSelection) {
+		this.overSelection = overSelection;
+		
+		// Any existing selection pool will need to be set again so it can be sorted.
+		if (programSelection.pool != null) {
+			setSelectionPool(programSelection.pool);
+		}
+	}
+	
+	/**
+	 * Cumulative fitness of programs to go into over-selected group. 
+	 * @return
+	 */
+	protected double getOverSelectionProportion(int popSize) {
+		double proportion = 0.32;
+		
+		// This should change based upon the population size.
+		int delimiter = 1000;
+		while (popSize > delimiter) {
+			proportion /= 2;
+			delimiter *= 2;
+		}
+		
+		return proportion;
+	}
 
 	/*
 	 * This is a little strange, but we use an inner class here so we can
@@ -184,15 +253,17 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 	 * created an internal instance of FitnessProportionateSelector but it is
 	 * not advisable to create components between model configurations.
 	 */
-	private class ProgramFitnessProportionateSelector implements
-			ProgramSelector {
+	private class ProgramFitnessProportionateSelector implements ProgramSelector {
 
 		// The current population from which programs should be chosen.
 		private List<CandidateProgram> pool;
 
-		// Normalised fitnesses.
-		private double[] fitnesses;
-
+		// Normalised normalised.
+		private double[] normalised;
+		
+		// Cumulative fitness of programs to go into over-selected group. 
+		private double overSelectionProportion;
+		
 		@Override
 		public void setSelectionPool(final List<CandidateProgram> pool) {
 			if ((pool == null) || pool.isEmpty()) {
@@ -201,41 +272,31 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 			}
 			this.pool = pool;
 
-			fitnesses = new double[pool.size()];
-
-			double maxFitness = Double.NEGATIVE_INFINITY;
-			double minFitness = Double.POSITIVE_INFINITY;
-
-			// Find the max and min fitnesses.
-			for (int i = 0; i < fitnesses.length; i++) {
-				fitnesses[i] = pool.get(i).getFitness();
-				if (fitnesses[i] > maxFitness) {
-					maxFitness = fitnesses[i];
-				}
-				if (fitnesses[i] < minFitness) {
-					minFitness = fitnesses[i];
-				}
+			// If using over-selection then ensure the pool is sorted first.
+			if (overSelection) {
+				Collections.sort(pool, Collections.reverseOrder());
 			}
-
-			// Add the minimum fitness as an offset.
-			maxFitness += minFitness;
-
-			// Invert and sum all the fitnesses.
-			double totalFitness = 0;
-			for (int i = 0; i < pool.size(); i++) {
-				fitnesses[i] = maxFitness - fitnesses[i];
-				totalFitness += fitnesses[i];
+			overSelectionProportion = getOverSelectionProportion(pool.size());
+			
+			// Get adjusted fitnesses for each program.
+			double[] adjusted = new double[pool.size()];
+			double adjustedSum = 0.0;
+			for (int i=0; i<adjusted.length; i++) {
+				double adjustedFitness = pool.get(i).getAdjustedFitness();
+				adjusted[i] = adjustedFitness;
+				adjustedSum += adjustedFitness;
 			}
 
 			// Calculate cumulative normalised fitnesses.
-			double sum = 0.0;
-			for (int i = 0; i < fitnesses.length; i++) {
-				sum += (fitnesses[i] / totalFitness);
-				fitnesses[i] = sum;
+			normalised = new double[pool.size()];
+			double normalisedSum = 0.0;
+			for (int i = 0; i < normalised.length; i++) {
+				normalisedSum += (adjusted[i] / adjustedSum);
+				normalised[i] = normalisedSum;
 			}
 
 			// Ensure the final probability is 1.0.
-			fitnesses[fitnesses.length - 1] = 1.0;
+			normalised[normalised.length - 1] = 1.0;
 		}
 
 		@Override
@@ -247,12 +308,23 @@ public class FitnessProportionateSelector extends ConfigOperator<Model>
 				throw new IllegalStateException("random number generator not set");
 			}
 
-			final double ran = rng.nextDouble();
+			double ran = rng.nextDouble();
 
+			if (overSelection) {
+				// Scale the random number to choose from correct part of array.
+				if (rng.nextDouble() < 0.8) {
+					// Select from over-selected group.
+					ran *= overSelectionProportion;
+				} else {
+					// Select from under-selected group.
+					ran = (ran*(1.0-overSelectionProportion)) + overSelectionProportion;
+				}
+			}
+			
 			assert ((ran >= 0.0) && (ran <= 1.0));
 
-			for (int i = 0; i < fitnesses.length; i++) {
-				if (ran <= fitnesses[i]) {
+			for (int i = 0; i < normalised.length; i++) {
+				if (ran <= normalised[i]) {
 					return pool.get(i);
 				}
 			}

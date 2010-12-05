@@ -67,6 +67,15 @@ public class SantaFeTrail extends AntTrail {
 	 * landscape of dimensions 32 x 32. The ant is set to 600 allowed timesteps.
 	 */
 	public SantaFeTrail() {
-		super(FOOD_LOCATIONS, new Dimension(32, 32), 600);
+		this(600);
+	}
+	
+	/**
+	 * Constructs the ant trail with the necessary food locations on an ant
+	 * landscape of dimensions 32 x 32. The ant is allowed the given number of
+	 * timesteps.
+	 */
+	public SantaFeTrail(int timesteps) {
+		super(FOOD_LOCATIONS, new Dimension(32, 32), timesteps);
 	}
 }
